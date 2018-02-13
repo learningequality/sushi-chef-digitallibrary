@@ -1,2 +1,6 @@
 venv
 .ipynb_checkpoints
+storage
+.ricecookerfilecache
+restore
+__pycache__
