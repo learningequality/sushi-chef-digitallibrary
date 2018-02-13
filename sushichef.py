@@ -71,16 +71,15 @@ def build_lang_lookup_table(FEED_ROOT_URL):
     # Assume the chef scrill will be run on the command line using   lang=lang_code
     # E.g. lang_code for Zulu is `zul`, for Amharic it's `am`, and for Nepali it's `ne-NP`
     for link in lang_links:
-        # print(link)
         href = link['href']
         m = _ALPHA_3_LANG_RE.search(href)
         if not m:
             raise ValueError('Cannot find 3-letter language code in href' + str(href))
         lang3 = m.groupdict()['lang3']
         lang_title = link['title']
-        lang_obj = getlang_by_name(lang_title)
         #
         # ATTEMPT 1 ##############
+        lang_obj = getlang_by_name(lang_title)
         if not lang_obj:
             lang_obj = getlang_by_native_name(lang_title)
             #
@@ -88,13 +87,14 @@ def build_lang_lookup_table(FEED_ROOT_URL):
             if not lang_obj:
                 pyc_lang = pycountry.languages.get(alpha_3=lang3)
                 if hasattr(pyc_lang, 'alpha_2'):
+                    #
                     # ATTEMPT 3 ##############
                     lang_obj = getlang_by_alpha2(pyc_lang.alpha_2)
                     if not lang_obj:
-                        print('ERRR lang_obj is none', lang3, pyc_lang)
+                        print('ERROR lang_obj is none', lang3, pyc_lang)
                 else:
-                    print('C no alpha_2 code in pycountries for ', lang3, pyc_lang)
-        assert lang_obj, 'no lang_obj found...'
+                    print('ERROR no alpha_2 code in pycountries for ', lang3, pyc_lang)
+        assert lang_obj, 'ERROR no lang_obj found despite three attempts'
         lang_code = lang_obj.code
         OPDS_LANG_ROOTS[lang_code] = dict(
             alpha_3=lang3,
@@ -191,16 +191,18 @@ def content_node_from_entry(entry, lang_code):
 def build_ricecooker_json_tree(args, options, json_tree_path):
     print('json_tree_path=', json_tree_path)
     """
-    Convert the OPDS feed into a Ricecooker JSON tree:
-      - Strucutre:  Language -->  readingLevel --> 'lrmi_educationalalignment': {'alignmenttype': 'readingLevel',
-    'targetname': '2'},
+    Convert the OPDS feed into a Ricecooker JSON tree, with the following strucutre:
+        Channel
+            --> Language (TopicNode)
+                    --> readingLevel (from lrmi_educationalalignment
+                            --> Book.pdf  (DocumentNode)
     """
     LOGGER.info('Starting to build the ricecooker_json_tree')
     # if 'lang' not in options:
     #     raise ValueError('Must specify lang=?? on the command line. Supported languages are `en` and `fr`')
     # lang = options['lang']
 
-    # Ricecooker tree
+    # Ricecooker tree for the channel
     ricecooker_json_tree = dict(
         source_domain = 'digitallibrary.io',
         source_id = 'digitallibrary-testing',  # feed_dict['id'],
@@ -264,8 +266,7 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
                 else:
                     print('content_node None for entry', entry)
 
-    # Write out ricecooker_json_tree_{en/fr}.json
-    print(ricecooker_json_tree)  # for debugging
+    # Write out ricecooker_json_tree.json
     write_tree_to_json_tree(json_tree_path, ricecooker_json_tree)
 
 
@@ -291,7 +292,4 @@ class GDLChef(JsonTreeChef):
 
 if __name__ == '__main__':
     chef = GDLChef()
-    # args, options = chef.parse_args_and_options()
-    # if 'lang' not in options:
-    #     raise ValueError('Need to specify command line option `lang=XY`, where XY in en, fr, ar, sw.')
     chef.main()

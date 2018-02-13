@@ -2,6 +2,32 @@ Sushi Chef script for the Global Digital Library - Book Catalog
 ===============================================================
 
 
+TODOs
+-----
+
+  - parse other file formats
+  - make lookup table for licenses and set appropriately
+  - add option to also create separate channels for each Language
+  - look into making script more generic so it works for any OPDS source, e.g.
+    using https://github.com/internetarchive/bookserver/blob/master/bookserver/catalog/Entry.py#L68
+
+
+
+Install
+-------
+
+    virtualenv -p python3 venv
+    source venv/bin/activate
+    pip install -r requirements.txt
+
+
+
+Running
+-------
+
+    ./sushichef.py --reset -v --token=<YOURTOKENHERE>
+
+
 
 
 Single-language channels
@@ -11,7 +37,8 @@ When running the chef, pass `lang=<code>` where code is one of the following:
     'af', 'am', 'bn', 'en', 'hi', 'id', 'km', 'mr', 'nr', 'ne-NP', 'nso',
     'sot', 'ss', 'swa', 'tsn', 'ts', 've', 'xho', 'zul'
 
-This will produce a cahnnel with a single langauge.
+This will produce a channel with a single language.
+
 
 
 
