@@ -77,6 +77,9 @@ def build_lang_lookup_table(FEED_ROOT_URL):
             raise ValueError('Cannot find 3-letter language code in href' + str(href))
         lang3 = m.groupdict()['lang3']
         lang_title = link['title']
+        if lang_title == "isiNdebele seSewula":
+            lang_title = "isiNdebele"
+        print('Processig lang_title', lang_title)
         #
         # ATTEMPT 1 ##############
         lang_obj = getlang_by_name(lang_title)
