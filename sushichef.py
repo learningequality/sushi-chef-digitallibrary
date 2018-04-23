@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 import logging
 from collections import defaultdict
+import os
 import re
+import subprocess
+
 from le_utils.constants.languages import getlang_by_alpha2, getlang_by_name, getlang_by_native_name
 from le_utils.constants import content_kinds, licenses, file_types
 
@@ -24,8 +27,7 @@ logging.getLogger("requests.packages").setLevel(logging.WARNING)
 LOGGER.setLevel(logging.DEBUG)
 
 
-FEED_ROOT_URL = 'https://opds.staging.digitallibrary.io/root.xml'
-
+FEED_ROOT_URL = 'https://api.digitallibrary.io/book-api/opds/v1/root.xml'
 
 
 _REL_SUBSECTION = 'subsection'
@@ -41,14 +43,32 @@ _REL_OPDS_ACQUISTION = u'http://opds-spec.org/acquisition'
 _REL_OPDS_OPEN_ACCESS = 'http://opds-spec.org/acquisition/open-access'
 
 
-_ALPHA_3_LANG_RE = re.compile(r"digitallibrary.io/(?P<lang3>.{3})/root\.xml")
+_ALPHA_3_LANG_RE = re.compile(r"digitallibrary.io/v1/(?P<gdl_lang_code>.{2,5})/root\.xml")
 
 
+
+BOOK_DATA_DIR = 'chefdata/pdfbooks'
+BOOK_PUBLISHERS_TO_CROP = ['African Storybook Initiative']
 
 
 
 # UTILS
 ################################################################################
+
+def crop_pdf_from_url(pdf_url):
+    orig_filename = os.path.basename(pdf_url)
+    orig_path = os.path.join(BOOK_DATA_DIR, orig_filename)
+    cropped_filename = orig_filename.replace('.pdf', '-cropped.pdf')
+    cropped_path = os.path.join(BOOK_DATA_DIR, cropped_filename)
+    # download original PDF
+    response = requests.get(pdf_url)
+    with open(orig_path, 'wb') as pdf_file:
+        pdf_file.write(response.content)
+    # convert pdf
+    command = ["pdfcrop", "--margins", "7", orig_path, cropped_path]
+    subprocess.check_output(command, stderr=subprocess.STDOUT)
+    return cropped_path
+
 
 def build_lang_lookup_table(FEED_ROOT_URL):
     """
@@ -75,10 +95,16 @@ def build_lang_lookup_table(FEED_ROOT_URL):
         m = _ALPHA_3_LANG_RE.search(href)
         if not m:
             raise ValueError('Cannot find 3-letter language code in href' + str(href))
-        lang3 = m.groupdict()['lang3']
+        gdl_lang_code = m.groupdict()['gdl_lang_code']
         lang_title = link['title']
         if lang_title == "isiNdebele seSewula":
             lang_title = "isiNdebele"
+        elif lang_title == 'বাঙালি':
+            lang_title = 'বাংলা'
+        elif lang_title in ['Hadiyya', 'Sidamo', 'Wolaytta']:
+            print('Skipping lang_title=', lang_title, ' TODO(ivan): add to le-utils so we can support this')
+            continue
+
         print('Processig lang_title', lang_title)
         #
         # ATTEMPT 1 ##############
@@ -86,21 +112,21 @@ def build_lang_lookup_table(FEED_ROOT_URL):
         if not lang_obj:
             lang_obj = getlang_by_native_name(lang_title)
             #
-            # ATTEMPT 2 ##########
+            # ATTEMPT 2 ##########   TODO: improve this logic since `gdl_lang_code` is no longer alpha_3 only
             if not lang_obj:
-                pyc_lang = pycountry.languages.get(alpha_3=lang3)
+                pyc_lang = pycountry.languages.get(alpha_3=gdl_lang_code)
                 if hasattr(pyc_lang, 'alpha_2'):
                     #
                     # ATTEMPT 3 ##############
                     lang_obj = getlang_by_alpha2(pyc_lang.alpha_2)
                     if not lang_obj:
-                        print('ERROR lang_obj is none', lang3, pyc_lang)
+                        print('ERROR lang_obj is none', gdl_lang_code, pyc_lang)
                 else:
-                    print('ERROR no alpha_2 code in pycountries for ', lang3, pyc_lang)
+                    print('ERROR no alpha_2 code in pycountries for ', gdl_lang_code, pyc_lang)
         assert lang_obj, 'ERROR no lang_obj found despite three attempts'
         lang_code = lang_obj.code
         OPDS_LANG_ROOTS[lang_code] = dict(
-            alpha_3=lang3,
+            alpha_3=gdl_lang_code,
             lang_title=lang_title,
             href=href,
             name=lang_obj.name,
@@ -162,7 +188,8 @@ def content_node_from_entry(entry, lang_code):
             pass
             # print('Skipping link', link)
 
-    GDL_LICENSE = get_license(licenses.CC_BY, copyright_holder=entry['dcterms_publisher']).as_dict()
+    publisher = entry['dcterms_publisher']
+    GDL_LICENSE = get_license(licenses.CC_BY, copyright_holder=publisher).as_dict()
 
     if pdf_link:
         pdf_url = pdf_link['href']
@@ -177,9 +204,15 @@ def content_node_from_entry(entry, lang_code):
             thumbnail=thumbnail_url,
             files=[],
         )
+
+        if publisher in BOOK_PUBLISHERS_TO_CROP:   # crop African Storybook PDFs
+            pdf_path = crop_pdf_from_url(pdf_url)
+        else:
+            pdf_path = pdf_url                           # upload unmodified PDF
+
         pdf_file = dict(
             file_type=file_types.DOCUMENT,
-            path=pdf_url,
+            path=pdf_path,
             language=lang_code,
         )
         child_node['files'] = [pdf_file]

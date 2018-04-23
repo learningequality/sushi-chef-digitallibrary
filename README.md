@@ -2,14 +2,28 @@ Sushi Chef script for the Global Digital Library - Book Catalog
 ===============================================================
 
 
+Notes Apr 23
+------------
+
+Currently three languages not supported by Kolibri:
+
+    Skipping lang_title= Hadiyya  TODO(ivan): add to le-utils so we can support this
+    Skipping lang_title= Sidamo  TODO(ivan): add to le-utils so we can support this
+    Skipping lang_title= Wolaytta  TODO(ivan): add to le-utils so we can support this
+
+Will need to add to `le-utils` by end of week in order to import full archive.
+
+
+
+
 TODOs
 -----
-
   - parse other file formats
   - make lookup table for licenses and set appropriately
   - add option to also create separate channels for each Language
   - look into making script more generic so it works for any OPDS source, e.g.
     using https://github.com/internetarchive/bookserver/blob/master/bookserver/catalog/Entry.py#L68
+
 
 
 
@@ -38,7 +52,6 @@ When running the chef, pass `lang=<code>` where code is one of the following:
     'sot', 'ss', 'swa', 'tsn', 'ts', 've', 'xho', 'zul'
 
 This will produce a channel with a single language.
-
 
 
 
