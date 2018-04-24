@@ -60,13 +60,18 @@ def crop_pdf_from_url(pdf_url):
     orig_path = os.path.join(BOOK_DATA_DIR, orig_filename)
     cropped_filename = orig_filename.replace('.pdf', '-cropped.pdf')
     cropped_path = os.path.join(BOOK_DATA_DIR, cropped_filename)
-    # download original PDF
-    response = requests.get(pdf_url)
-    with open(orig_path, 'wb') as pdf_file:
-        pdf_file.write(response.content)
-    # convert pdf
-    command = ["pdfcrop", "--margins", "7", orig_path, cropped_path]
-    subprocess.check_output(command, stderr=subprocess.STDOUT)
+    #
+    # download original PDF if needed
+    if not os.path.exists(orig_path):
+        response = requests.get(pdf_url)
+        with open(orig_path, 'wb') as pdf_file:
+            pdf_file.write(response.content)
+    #
+    # convert pdf if needed
+    if not os.path.exists(cropped_path):
+        command = ["pdfcrop", "--margins", "7", orig_path, cropped_path]
+        subprocess.check_output(command, stderr=subprocess.STDOUT)
+    #
     return cropped_path
 
 
