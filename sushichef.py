@@ -195,13 +195,18 @@ def content_node_from_entry(entry, lang_code):
 
     if pdf_link:
         pdf_url = pdf_link['href']
+        author = entry.get('author', None)
+        if author is None:
+            author = 'Unknown'
+            referrer = entry['title_detail']['base']
+            LOGGER.warning('Unknown author for id={}, title={}, referrer={}'.format(entry['id'], entry['title'], referrer))
         child_node = dict(
             kind=content_kinds.DOCUMENT,
             source_id=entry['id'],
             language=lang_code,
             title=entry['title'],
             description=entry.get('summary', None),
-            author=entry['author'],
+            author=author,
             license=GDL_LICENSE,
             thumbnail=thumbnail_url,
             files=[],
