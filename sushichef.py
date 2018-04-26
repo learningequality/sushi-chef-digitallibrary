@@ -83,7 +83,6 @@ def build_lang_lookup_table(FEED_ROOT_URL):
     OPDS_LANG_ROOTS = {}
 
     feed = feedparser.parse(FEED_ROOT_URL)
-
     lang_links = []
     for link in feed.feed.links:
         if 'opds:facetgroup' in link:
@@ -144,6 +143,9 @@ def build_lang_lookup_table(FEED_ROOT_URL):
 def parse_entire_feed(start_url):
     all_entries = []
     feed = feedparser.parse(start_url)
+    if 'links' not in feed.feed:
+        LOGGER.warning('Encountered empty feed at url={}'.format(start_url))
+        return None, None
     feed_dict = parse_feed_metadata(feed)
     all_entries.extend(feed.entries)
     next_url = get_next_link(feed)
@@ -265,7 +267,8 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
         lang_dict = OPDS_LANG_ROOTS[lang_code]
         start_url = lang_dict['href']
         feed_dict, all_entries = parse_entire_feed(start_url)
-
+        if feed_dict is None:
+            continue  # Skip over empty or broken feeds
         lang_topic = dict(
             kind=content_kinds.TOPIC,
             source_id=start_url,
