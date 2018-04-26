@@ -106,9 +106,6 @@ def build_lang_lookup_table(FEED_ROOT_URL):
             lang_title = "isiNdebele"
         elif lang_title == 'বাঙালি':
             lang_title = 'বাংলা'
-        elif lang_title in ['Hadiyya', 'Sidamo', 'Wolaytta']:
-            print('Skipping lang_title=', lang_title, ' TODO(ivan): add to le-utils so we can support this')
-            continue
 
         print('Processig lang_title', lang_title)
         #
