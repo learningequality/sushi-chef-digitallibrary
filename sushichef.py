@@ -55,6 +55,13 @@ BOOK_PUBLISHERS_TO_CROP = ['African Storybook Initiative']
 # UTILS
 ################################################################################
 
+def guess_license_id_from_string(lisence_long_name):
+    if lisence_long_name == 'Creative Commons Attribution 4.0 International':
+        return licenses.CC_BY
+    else:
+        LOGGER.warning('Encountered new license called {}'.format(lisence_long_name))
+        return licenses.CC_BY  # default to licenses.CC_BY
+
 def crop_pdf_from_url(pdf_url):
     orig_filename = os.path.basename(pdf_url)
     orig_path = os.path.join(BOOK_DATA_DIR, orig_filename)
@@ -180,41 +187,122 @@ def _get_reading_level(entry):
 # BUILD WEB RESOURCE TREE
 ################################################################################
 
+def join_with_commas_and_and(authors):
+    if len(authors) == 0:
+        return ''
+    elif len(authors) == 1:
+        return authors[0]
+    elif len(authors) == 2:
+        return authors[0] + ' and ' + authors[1]
+    else:
+        authors_except_last = authors[0:-1]
+        last = authors[-1]
+        authors_str = ', '.join(authors_except_last)
+        authors_str += ', and '
+        authors_str += last
+        return authors_str
+
+def _author_from_entry(entry):
+    """
+    Generates a concatenation for all author names
+    """
+    if 'authors' in entry:
+        authors = [a['name'] for a in entry['authors']]
+        if 'contributors' in entry:
+            authors.extend([c['name'] for c in entry['contributors']])
+        authors_str = join_with_commas_and_and(authors)
+    elif 'author' in entry:
+        authors_str = entry['author']
+    else:
+        referrer = entry['title_detail']['base']
+        LOGGER.warning('Empty author for id={}, title={}, referrer={}'.format(entry['id'], entry['title'], referrer))
+        authors_str = ''
+    return authors_str
+
+
 def content_node_from_entry(entry, lang_code):
+    """
+    Convert a feed entry into ricecooker json dict.
+    """
+    # METADATA
+    ############################################################################
+    # author (using ,-separated list in case of multiple authors/contributors)
+    authors_str = _author_from_entry(entry)
+
+    # license info
+    # currently one of {'African Storybook Initiative', 'USAID'}
+    dcterms_publisher = entry['dcterms_publisher']
+    license_id = guess_license_id_from_string(entry['dcterms_license'])
+    LICENSE = get_license(license_id, copyright_holder=dcterms_publisher).as_dict()
+
+    # currently one of {'African Storybook Initiative', 'USAID'}
+    provider = dcterms_publisher
+
+    # since we're importing the content from here
+    aggregator = 'Global Digital Library'
+
+    # CONTENT
+    ############################################################################
     pdf_link = None
+    epub_link = None
     thumbnail_url = None
     for link in entry.links:
         if link['type'] == 'application/pdf':
             pdf_link = link
-        elif link['rel'] == _REL_OPDS_IMAGE: # _REL_OPDS_THUMBNAIL:
+        elif link['type'] == 'application/epub+zip':
+            epub_link = link
+        elif link['rel'] == _REL_OPDS_IMAGE:
             thumbnail_url = link['href']
+        elif link['rel'] == _REL_OPDS_THUMBNAIL:
+            pass # skip thumnail URLs silently --- prefer _REL_OPDS_IMAGE because has right extension
         else:
+            print('Skipping link', link)
             pass
-            # print('Skipping link', link)
 
-    publisher = entry['dcterms_publisher']
-    GDL_LICENSE = get_license(licenses.CC_BY, copyright_holder=publisher).as_dict()
-
-    if pdf_link:
-        pdf_url = pdf_link['href']
-        author = entry.get('author', None)
-        if author is None:
-            author = 'Unknown'
-            referrer = entry['title_detail']['base']
-            LOGGER.warning('Unknown author for id={}, title={}, referrer={}'.format(entry['id'], entry['title'], referrer))
+    # prefer EPUBs...
+    if epub_link:
+        epub_url = epub_link['href']
         child_node = dict(
             kind=content_kinds.DOCUMENT,
             source_id=entry['id'],
             language=lang_code,
             title=entry['title'],
             description=entry.get('summary', None),
-            author=author,
-            license=GDL_LICENSE,
+            author=authors_str,
+            license=LICENSE,
+            provider=provider,
+            aggregator=aggregator,
+            thumbnail=thumbnail_url,
+            files=[],
+        )
+        epub_file = dict(
+            file_type=file_types.EPUB,
+            path=epub_url,
+            language=lang_code,
+        )
+        child_node['files'] = [epub_file]
+        LOGGER.debug('Created EPUB Document Node from url ' + epub_url)
+        return child_node
+
+
+    # ... but if no EPUB, then get PDF.
+    elif epub_link is None and pdf_link:
+        pdf_url = pdf_link['href']
+        child_node = dict(
+            kind=content_kinds.DOCUMENT,
+            source_id=entry['id'],
+            language=lang_code,
+            title=entry['title'],
+            description=entry.get('summary', None),
+            author=authors_str,
+            license=LICENSE,
+            provider=provider,
+            aggregator=aggregator,
             thumbnail=thumbnail_url,
             files=[],
         )
 
-        if publisher in BOOK_PUBLISHERS_TO_CROP:   # crop African Storybook PDFs
+        if dcterms_publisher in BOOK_PUBLISHERS_TO_CROP:  # crop African Storybook PDFs
             pdf_path = crop_pdf_from_url(pdf_url)
         else:
             pdf_path = pdf_url                           # upload unmodified PDF
@@ -324,7 +412,7 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
 
 class GDLChef(JsonTreeChef):
     """
-    Import
+    Import EPUBs and PDFs for all languages from the GDL Book Catalog.
     """
     RICECOOKER_JSON_TREE = 'ricecooker_json_tree.json'
 

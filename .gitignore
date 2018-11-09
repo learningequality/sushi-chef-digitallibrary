@@ -1,3 +1,8 @@
+cache.sqlite
+cut_material.py
+devnotes/
+
+# tmp dir where PDFs are store before cropping them
 chefdata/pdfbooks/
 
 venv
