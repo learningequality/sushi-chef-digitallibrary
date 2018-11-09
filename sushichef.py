@@ -56,11 +56,17 @@ BOOK_PUBLISHERS_TO_CROP = ['African Storybook Initiative']
 ################################################################################
 
 def guess_license_id_from_string(lisence_long_name):
-    if lisence_long_name == 'Creative Commons Attribution 4.0 International':
-        return licenses.CC_BY
-    else:
+    lookup_table = {
+        'Creative Commons Attribution 4.0 International': licenses.CC_BY,
+        'Creative Commons Attribution Non Commercial 4.0 International': licenses.CC_BY_NC,
+        'Creative Commons Attribution Non Commercial Share Alike 4.0 International': licenses.CC_BY_NC_SA,
+    }
+    license_id = lookup_table.get(lisence_long_name, None)
+    if license_id is None:
         LOGGER.warning('Encountered new license called {}'.format(lisence_long_name))
-        return licenses.CC_BY  # default to licenses.CC_BY
+        license_id = licenses.CC_BY  # default to licenses.CC_BY
+    return license_id
+
 
 def crop_pdf_from_url(pdf_url):
     orig_filename = os.path.basename(pdf_url)
