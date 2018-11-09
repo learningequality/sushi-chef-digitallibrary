@@ -426,6 +426,8 @@ class GDLChef(JsonTreeChef):
         """
         Run the preliminary step.
         """
+        if os.path.exists('cache.sqlite'):
+            os.remove('cache.sqlite')
         json_tree_path = self.get_json_tree_path()
         build_ricecooker_json_tree(args, options, json_tree_path)
 
