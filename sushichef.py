@@ -222,7 +222,7 @@ def _author_from_entry(entry):
     else:
         referrer = entry['title_detail']['base']
         LOGGER.warning('Empty author for id={}, title={}, referrer={}'.format(entry['id'], entry['title'], referrer))
-        authors_str = ''
+        authors_str = entry['dcterms_publisher'] + ' authors'
     return authors_str
 
 
