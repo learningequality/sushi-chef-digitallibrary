@@ -60,6 +60,8 @@ def guess_license_id_from_string(lisence_long_name):
         'Creative Commons Attribution 4.0 International': licenses.CC_BY,
         'Creative Commons Attribution Non Commercial 4.0 International': licenses.CC_BY_NC,
         'Creative Commons Attribution Non Commercial Share Alike 4.0 International': licenses.CC_BY_NC_SA,
+        'Creative Commons Attribution Non Commercial 3.0 Unported': licenses.CC_BY_NC,
+        'Creative Commons Attribution 3.0 Unported': licenses.CC_BY,
     }
     license_id = lookup_table.get(lisence_long_name, None)
     if license_id is None:

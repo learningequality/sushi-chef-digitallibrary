@@ -18,8 +18,6 @@ Will need to add to `le-utils` by end of week in order to import full archive.
 
 TODOs
 -----
-  - parse other file formats
-  - make lookup table for licenses and set appropriately
   - add option to also create separate channels for each Language
   - look into making script more generic so it works for any OPDS source, e.g.
     using https://github.com/internetarchive/bookserver/blob/master/bookserver/catalog/Entry.py#L68
