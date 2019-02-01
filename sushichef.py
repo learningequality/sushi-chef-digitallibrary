@@ -391,7 +391,7 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
             level_topic = dict(
                 kind=content_kinds.TOPIC,
                 source_id='digitallibrary.io'+':'+lang_code+':'+level,
-                title='Level '+level,
+                title=level,
                 author='',
                 description='',
                 language=lang_code,
