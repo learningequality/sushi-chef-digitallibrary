@@ -43,7 +43,7 @@ _REL_OPDS_ACQUISTION = u'http://opds-spec.org/acquisition'
 _REL_OPDS_OPEN_ACCESS = 'http://opds-spec.org/acquisition/open-access'
 
 
-_ALPHA_3_LANG_RE = re.compile(r"digitallibrary.io/v1/(?P<gdl_lang_code>.{2,5})/root\.xml")
+_LANG_CODE_RE = re.compile(r"digitallibrary.io/v1/(?P<gdl_lang_code>.+)/root\.xml")
 
 
 
@@ -97,6 +97,9 @@ def build_lang_lookup_table(FEED_ROOT_URL):
     """
     OPDS_LANG_ROOTS = {}
 
+    # Check for languages we don't yet support in Kolibri.
+    langs_not_found = []
+
     feed = feedparser.parse(FEED_ROOT_URL)
     lang_links = []
     for link in feed.feed.links:
@@ -111,9 +114,9 @@ def build_lang_lookup_table(FEED_ROOT_URL):
     # E.g. lang_code for Zulu is `zul`, for Amharic it's `am`, and for Nepali it's `ne-NP`
     for link in lang_links:
         href = link['href']
-        m = _ALPHA_3_LANG_RE.search(href)
+        m = _LANG_CODE_RE.search(href)
         if not m:
-            raise ValueError('Cannot find 3-letter language code in href' + str(href))
+            raise ValueError('Cannot find language code in href: ' + str(href))
         gdl_lang_code = m.groupdict()['gdl_lang_code']
         lang_title = link['title']
         if lang_title == "isiNdebele seSewula":
@@ -128,18 +131,21 @@ def build_lang_lookup_table(FEED_ROOT_URL):
         if not lang_obj:
             lang_obj = getlang_by_native_name(lang_title)
             #
-            # ATTEMPT 2 ##########   TODO: improve this logic since `gdl_lang_code` is no longer alpha_3 only
+            # ATTEMPT 2 #########
             if not lang_obj:
-                pyc_lang = pycountry.languages.get(alpha_3=gdl_lang_code)
+                pyc_lang = pycountry.languages.lookup(gdl_lang_code)
+                code = pyc_lang.alpha_3
                 if hasattr(pyc_lang, 'alpha_2'):
                     #
                     # ATTEMPT 3 ##############
-                    lang_obj = getlang_by_alpha2(pyc_lang.alpha_2)
-                    if not lang_obj:
-                        print('ERROR lang_obj is none', gdl_lang_code, pyc_lang)
-                else:
-                    print('ERROR no alpha_2 code in pycountries for ', gdl_lang_code, pyc_lang)
-        assert lang_obj, 'ERROR no lang_obj found despite three attempts'
+                    code = pyc_lang.alpha_2
+
+                # getlang_by_alpha2 is a misnomer, codes can be alpha2, alpha3, or lang+locale.
+                lang_obj = getlang_by_alpha2(code)
+                if not lang_obj:
+                    langs_not_found.append((pyc_lang, lang_title))
+                    print('ERROR could not find Kolibri lang info for ', pyc_lang)
+                    continue
         lang_code = lang_obj.code
         OPDS_LANG_ROOTS[lang_code] = dict(
             alpha_3=gdl_lang_code,
@@ -148,6 +154,14 @@ def build_lang_lookup_table(FEED_ROOT_URL):
             name=lang_obj.name,
             native_name=lang_obj.native_name,
         )
+
+    # For now, make missing languages a hard error so we can evaluate new language support case-by-case.
+    if len(langs_not_found) > 0:
+        lang_codes = []
+        for pyc_lang, lang_title in langs_not_found:
+            lang_codes.append(pyc_lang.alpha_3)
+        message = "The following languages are not yet supported in Kolibri: {}".format(",".join(lang_codes))
+        assert len(langs_not_found) == 0, message
 
     return OPDS_LANG_ROOTS
 
@@ -358,6 +372,8 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
 
 
     OPDS_LANG_ROOTS = build_lang_lookup_table(FEED_ROOT_URL)
+
+    print("{} languages found".format(len(OPDS_LANG_ROOTS)))
     for lang_code in sorted(OPDS_LANG_ROOTS.keys()):
         print("Processing lang_code", lang_code)
         lang_dict = OPDS_LANG_ROOTS[lang_code]
