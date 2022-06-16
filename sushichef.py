@@ -18,17 +18,10 @@ import requests
 import feedparser
 import pycountry
 
-
-
 # LOGGING SETTINGS
 ################################################################################
 logging.getLogger("cachecontrol.controller").setLevel(logging.WARNING)
-logging.getLogger("requests.packages").setLevel(logging.WARNING)
-LOGGER.setLevel(logging.DEBUG)
-
-
 FEED_ROOT_URL = 'https://api.digitallibrary.io/book-api/opds/v1/root.xml'
-
 
 _REL_SUBSECTION = 'subsection'
 _REL_OPDS_POPULAR = u'http://opds-spec.org/sort/popular'
@@ -36,20 +29,18 @@ _REL_OPDS_NEW = u'http://opds-spec.org/sort/new'
 _REL_ALTERNATE = 'alternate'
 _REL_CRAWLABLE = 'http://opds-spec.org/crawlable'
 
-
 _REL_OPDS_IMAGE = 'http://opds-spec.org/image'
 _REL_OPDS_THUMBNAIL = 'http://opds-spec.org/image/thumbnail'
+logging.getLogger("requests.packages").setLevel(logging.WARNING)
+LOGGER.setLevel(logging.DEBUG)
+
 _REL_OPDS_ACQUISTION = u'http://opds-spec.org/acquisition'
 _REL_OPDS_OPEN_ACCESS = 'http://opds-spec.org/acquisition/open-access'
 
-
 _LANG_CODE_RE = re.compile(r"digitallibrary.io/v1/(?P<gdl_lang_code>.+)/root\.xml")
-
-
 
 BOOK_DATA_DIR = 'chefdata/pdfbooks'
 BOOK_PUBLISHERS_TO_CROP = ['African Storybook Initiative']
-
 
 
 # UTILS
@@ -184,12 +175,14 @@ def parse_entire_feed(start_url):
         next_url = get_next_link(feed)
     return feed_dict, all_entries
 
+
 def get_next_link(feed):
     next_link = None
     for link in feed.feed.links:
         if 'rel' in link and link['rel'] == 'next':
             next_link = link['href']
     return next_link
+
 
 def parse_feed_metadata(feed):
     return feed.feed
@@ -223,6 +216,7 @@ def join_with_commas_and_and(authors):
         authors_str += ', and '
         authors_str += last
         return authors_str
+
 
 def _author_from_entry(entry):
     """
@@ -276,7 +270,7 @@ def content_node_from_entry(entry, lang_code):
         elif link['rel'] == _REL_OPDS_IMAGE:
             thumbnail_url = link['href']
         elif link['rel'] == _REL_OPDS_THUMBNAIL:
-            pass # skip thumnail URLs silently --- prefer _REL_OPDS_IMAGE because has right extension
+            pass  # skip thumnail URLs silently --- prefer _REL_OPDS_IMAGE because has right extension
         else:
             print('Skipping link', link)
             pass
@@ -327,7 +321,7 @@ def content_node_from_entry(entry, lang_code):
         if dcterms_publisher in BOOK_PUBLISHERS_TO_CROP:  # crop African Storybook PDFs
             pdf_path = crop_pdf_from_url(pdf_url)
         else:
-            pdf_path = pdf_url                           # upload unmodified PDF
+            pdf_path = pdf_url  # upload unmodified PDF
 
         pdf_file = dict(
             file_type=file_types.DOCUMENT,
@@ -359,17 +353,16 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
 
     # Ricecooker tree for the channel
     ricecooker_json_tree = dict(
-        source_domain = 'digitallibrary.io',
-        source_id = 'digitallibrary-testing',  # feed_dict['id'],
-        title = 'Global Digital Library - Book Catalog',  # ({})'.format(lang),
-        thumbnail = './content/globaldigitallibrary_logo.png',
-        description = 'The Global Digital Library (GDL) is being developed to '
-                      'increase the availability of high quality reading resources '
-                      'in languages children and youth speak and understand.',
-        language = 'en', # lang,
+        source_domain='digitallibrary.io',
+        source_id='digitallibrary-testing-2',  # feed_dict['id'],
+        title='Global Digital Library - Book Catalog',  # ({})'.format(lang),
+        thumbnail='./content/globaldigitallibrary_logo.png',
+        description='The Global Digital Library (GDL) is being developed to '
+                    'increase the availability of high quality reading resources '
+                    'in languages children and youth speak and understand.',
+        language='en',  # lang,
         children=[],
     )
-
 
     OPDS_LANG_ROOTS = build_lang_lookup_table(FEED_ROOT_URL)
 
@@ -406,7 +399,7 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
             print("Processing level", level)
             level_topic = dict(
                 kind=content_kinds.TOPIC,
-                source_id='digitallibrary.io'+':'+lang_code+':'+level,
+                source_id='digitallibrary.io' + ':' + lang_code + ':' + level,
                 title=level,
                 author='',
                 description='',
@@ -426,9 +419,6 @@ def build_ricecooker_json_tree(args, options, json_tree_path):
 
     # Write out ricecooker_json_tree.json
     write_tree_to_json_tree(json_tree_path, ricecooker_json_tree)
-
-
-
 
 
 # CHEF
