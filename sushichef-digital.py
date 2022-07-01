@@ -35,7 +35,7 @@ CHANNEL_LANGUAGE = "mul"  # Language of channel
 CHANNEL_DESCRIPTION = """The Global Digital Library (GDL) is being developed to '
                     'increase the availability of high quality reading resources '
                     'in languages children and youth speak and understand."""
-
+CHANNEL_THUMBNAIL = 'gdl.png'
 FOLDER_STORAGE = os.path.join("storage")
 BOOKS_LINK = "https://digitallibrary.io/wp-json/content-api/v1/books/"
 
@@ -47,14 +47,14 @@ SESSION.headers = headers
 
 
 def scrape_all_languages():
-    lst_languages = []
+    dict_languages = {}
     response = SESSION.get('{}'.format(CHANNEL_DOMAIN))
     page = BeautifulSoup(response.text, 'html5lib')
     lst_items = page.find_all('li', {'class': 'fl-languages__list__item'})
     for item in lst_items:
         url = item.find('a')
-        lst_languages.append(url['href'])
-    return lst_languages
+        dict_languages[url.text] = url['href']
+    return dict_languages
 
 
 def get_all_books(language):
@@ -86,10 +86,10 @@ def create_book_structure(lst_dict_books):
             }
 
             if not dict_channel_structure.get(level_object.get('name')):
-                dict_channel_structure[level_object.get('name')] = [book_obj]
+                dict_channel_structure[level_object.get('name')] = {dict_book.get('title'): book_obj}
             else:
-                lst_level = dict_channel_structure.get(level_object.get('name'))
-                lst_level.append(book_obj)
+                dict_level = dict_channel_structure.get(level_object.get('name'))
+                dict_level.update({dict_book.get('title'): book_obj})
     return dict_channel_structure
 
 
@@ -115,6 +115,7 @@ class GlobalDigitalLibrary(SushiChef):
         'CHANNEL_TITLE': CHANNEL_NAME,
         'CHANNEL_LANGUAGE': CHANNEL_LANGUAGE,
         'CHANNEL_DESCRIPTION': CHANNEL_DESCRIPTION,
+        'CHANNEL_THUMBNAIL': CHANNEL_THUMBNAIL
     }
     translator = None
 
@@ -132,26 +133,31 @@ class GlobalDigitalLibrary(SushiChef):
             description=description,
             language=LANGUAGE
         )
-        lst_languages = scrape_all_languages()
-        lst_dict_structure_content = []
-        for url_lang_path in lst_languages:
+        dict_languages = scrape_all_languages()
+        dict_structure_content = {}
+        sorted_keys = sorted(dict_languages.keys())
+        for key_name in sorted_keys:
+            url_lang_path = dict_languages[key_name]
             language = url_lang_path.split('?')[0].split('/')[-1]
             lst_dict_books = get_all_books(language)
             if lst_dict_books:
                 book_structure = create_book_structure(lst_dict_books)
-                lst_dict_structure_content.append(book_structure)
-        self.upload_content(lst_dict_structure_content, channel)
+                dict_structure_content[key_name] = book_structure
+        self.upload_content(dict_structure_content, channel)
         return channel
 
-    def upload_content(self, lst_dict_content, channel):
-        for dict_content in lst_dict_content:
+    def upload_content(self, dict_content_structure, channel):
+        for language in dict_content_structure:
+            dict_content = dict_content_structure[language]
+            language_topic = TopicNode(source_id='{}'.format(language), title=language)
             for key_level in dict_content:
-                lst_level = dict_content.get(key_level)
-                dict_book = lst_level[0]
+                dict_level = dict_content.get(key_level)
+                dict_book = list(dict_level.values())[0]
                 language_code = dict_book.get('code')
                 level_language = languages._parse_out_iso_639_code(language_code)
                 level_topic = TopicNode(source_id='{}-{}'.format(key_level, level_language), title=key_level)
-                for dict_book in lst_level:
+                for key_name in dict_level:
+                    dict_book = dict_level[key_name]
                     license_book = guess_license_id_from_string(dict_book.get('license'), dict_book.get('publisher'))
                     language_code = dict_book.get('code')
                     language = languages._parse_out_iso_639_code(language_code)
@@ -162,7 +168,7 @@ class GlobalDigitalLibrary(SushiChef):
                             language = 'csx'
                     book_node = H5PAppNode(
                         source_id=str(dict_book.get('post_name')),
-                        title=dict_book.get('title'),
+                        title=dict_book.get('title').replace('&#039;', '\''),
                         license=license_book,
                         description=dict_book.get('description'),
                         thumbnail=dict_book.get('thumbnail'),
@@ -170,7 +176,10 @@ class GlobalDigitalLibrary(SushiChef):
                         files=[H5PFile(dict_book.get('download_url'))]
                     )
                     level_topic.add_child(book_node)
-                channel.add_child(level_topic)
+                level_topic.sort_children()
+                language_topic.add_child(level_topic)
+            language_topic.sort_children()
+            channel.add_child(language_topic)
         return channel
 
 
