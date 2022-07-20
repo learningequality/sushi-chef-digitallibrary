@@ -166,9 +166,11 @@ class GlobalDigitalLibrary(SushiChef):
                             language = 'rsn'
                         elif 'sgn-kh' in dict_book.get('code'):
                             language = 'csx'
+                    title = dict_book.get('title').replace('&#039;', '\'')
+                    replace_title = (str(title)).replace('&amp;','&')
                     book_node = H5PAppNode(
                         source_id=str(dict_book.get('post_name')),
-                        title=dict_book.get('title').replace('&#039;', '\''),
+                        title=replace_title,
                         license=license_book,
                         description=dict_book.get('description'),
                         thumbnail=dict_book.get('thumbnail'),
