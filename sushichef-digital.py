@@ -29,8 +29,9 @@ sess.mount('http://', adapter)
 sess.mount('https://', adapter)
 
 CHANNEL_NAME = "Global Digital Library - Book Catalog"  # Name of Kolibri channel
-CHANNEL_SOURCE_ID = "GDL_Book_catalog_mul"  # Unique ID for content source
-CHANNEL_DOMAIN = "https://digitallibrary.io/"  # Who is providing the content
+# This is the right source id from the public channel that is used - even though it says -testing.
+CHANNEL_SOURCE_ID = "digitallibrary-testing"  # Unique ID for content source
+CHANNEL_DOMAIN = "digitallibrary.io"  # Who is providing the content
 CHANNEL_LANGUAGE = "mul"  # Language of channel
 CHANNEL_DESCRIPTION = """The Global Digital Library (GDL) is being developed to '
                     'increase the availability of high quality reading resources '
@@ -48,7 +49,7 @@ SESSION.headers = headers
 
 def scrape_all_languages():
     dict_languages = {}
-    response = SESSION.get('{}'.format(CHANNEL_DOMAIN))
+    response = SESSION.get('https://www.{}'.format(CHANNEL_DOMAIN))
     page = BeautifulSoup(response.text, 'html5lib')
     lst_items = page.find_all('li', {'class': 'fl-languages__list__item'})
     for item in lst_items:
@@ -187,4 +188,4 @@ class GlobalDigitalLibrary(SushiChef):
 
 if __name__ == '__main__':
     GlobalDigitalLibrary().main()
-    # scrape_all_languages()
+    # print(scrape_all_languages())
